@@ -61,10 +61,15 @@ export default function Processing({ selfieImage, contactData, onComplete, onErr
           </svg>
         </div>
         <h2 className="text-xl font-bold text-spg-gray-dark mb-3">Oops!</h2>
-        <p className="text-gray-400 mb-8">{error}</p>
-        <button onClick={onError} className="btn-primary">
-          Try Again
-        </button>
+        <p className="text-gray-400 mb-6">{error}</p>
+        <div className="space-y-3">
+          <button onClick={onError} className="btn-primary">
+            Try Again with a Different Photo
+          </button>
+          <button onClick={() => { hasStarted.current = false; setError(null); }} className="btn-outline">
+            Retry with Same Photo
+          </button>
+        </div>
       </div>
     );
   }
