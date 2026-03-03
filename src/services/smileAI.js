@@ -41,10 +41,16 @@ export async function generateSmile(selfieDataUrl) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to generate your new smile. Please try again.');
+    console.error('Server error response:', errorData);
+    const debugStr = errorData.debug ? ` [Debug: ${JSON.stringify(errorData.debug)}]` : '';
+    throw new Error((errorData.error || 'Failed to generate your new smile.') + debugStr);
   }
 
   const data = await response.json();
+  if (!data.imageUrl) {
+    console.error('Missing imageUrl in response:', data);
+    throw new Error('Server returned an empty result. Please try again.');
+  }
   return data.imageUrl;
 }
 

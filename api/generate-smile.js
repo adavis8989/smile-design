@@ -1,31 +1,41 @@
 import { fal } from '@fal-ai/client';
 
-// Configure fal.ai with API key from environment
-fal.config({
-  credentials: process.env.FAL_KEY,
-});
+export const config = {
+  maxDuration: 60,
+};
 
 export default async function handler(req, res) {
-  // Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Increase body size awareness — Vercel allows up to 4.5MB by default
   const { image, mask } = req.body;
 
   if (!image || !mask) {
     return res.status(400).json({ error: 'Image and mask are required' });
   }
 
-  try {
-    // Upload base64 images to fal storage
-    const [imageUrl, maskUrl] = await Promise.all([
-      uploadBase64ToFal(image),
-      uploadBase64ToFal(mask),
-    ]);
+  if (!process.env.FAL_KEY) {
+    console.error('FAL_KEY environment variable is not set');
+    return res.status(500).json({ error: 'AI service is not configured. FAL_KEY is missing.' });
+  }
 
-    // Call fal.ai FLUX inpainting model
+  fal.config({
+    credentials: process.env.FAL_KEY,
+  });
+
+  try {
+    // Step 1: Upload images to fal storage using their 2-step REST flow
+    // (initiate → get presigned URL → PUT file)
+    console.log('Uploading images to fal storage...');
+    const [imageUrl, maskUrl] = await Promise.all([
+      uploadToFalStorage(image),
+      uploadToFalStorage(mask),
+    ]);
+    console.log('Upload complete:', imageUrl?.slice(0, 100), maskUrl?.slice(0, 100));
+
+    // Step 2: Call fal.ai inpainting
+    console.log('Calling fal.ai inpainting...');
     const result = await fal.subscribe('fal-ai/flux-lora/inpainting', {
       input: {
         image_url: imageUrl,
@@ -39,50 +49,60 @@ export default async function handler(req, res) {
       },
     });
 
-    // Extract the generated image URL from the response
+    console.log('fal.ai response keys:', Object.keys(result || {}));
+    if (result?.data) {
+      console.log('result.data keys:', Object.keys(result.data));
+    }
+
+    // Step 3: Extract generated image URL
     const generatedImageUrl =
-      result.data?.images?.[0]?.url ||
-      result.images?.[0]?.url;
+      result?.data?.images?.[0]?.url ||
+      result?.images?.[0]?.url;
 
     if (!generatedImageUrl) {
-      console.error('Unexpected fal.ai response structure:', JSON.stringify(result).slice(0, 1000));
-      return res.status(500).json({ error: 'Failed to generate image. Unexpected response format.' });
+      console.error('Unexpected response:', JSON.stringify(result).slice(0, 2000));
+      return res.status(500).json({
+        error: 'AI returned unexpected data. Please try again.',
+        debug: JSON.stringify(result).slice(0, 500),
+      });
     }
 
     return res.status(200).json({ imageUrl: generatedImageUrl });
   } catch (err) {
-    console.error('fal.ai error:', err?.message || err);
-    console.error('fal.ai error body:', JSON.stringify(err?.body || err).slice(0, 500));
+    console.error('generate-smile error:', err);
 
-    if (err.status === 401) {
-      console.error('FAL_KEY is invalid or not set. Current key prefix:', process.env.FAL_KEY?.slice(0, 8) || 'NOT SET');
-      return res.status(500).json({ error: 'AI service authentication failed. Please contact support.' });
+    const errMsg = err?.message || String(err);
+    const errStatus = err?.status;
+    const errBody = err?.body;
+
+    const debugInfo = `${errMsg} [status=${errStatus}] [body=${JSON.stringify(errBody).slice(0, 300)}]`;
+    console.error('Debug:', debugInfo);
+
+    if (errStatus === 401 || errMsg.includes('Unauthorized') || errMsg.includes('credentials')) {
+      return res.status(500).json({ error: 'AI service auth failed. Check FAL_KEY.', debug: debugInfo });
     }
-    if (err.status === 422) {
-      return res.status(422).json({ error: 'The image could not be processed. Please try a different photo.' });
+    if (errStatus === 422) {
+      return res.status(422).json({ error: 'The image could not be processed. Try a different photo.', debug: debugInfo });
     }
-    if (err.status === 429) {
-      return res.status(429).json({ error: 'Too many requests. Please wait a moment and try again.' });
+    if (errStatus === 429) {
+      return res.status(429).json({ error: 'Too many requests. Please wait and try again.', debug: debugInfo });
     }
 
-    return res.status(500).json({
-      error: 'Something went wrong generating your smile. Please try again.',
-      detail: process.env.NODE_ENV === 'development' ? err?.message : undefined,
-    });
+    // Return the REAL error so we can see what's wrong
+    return res.status(500).json({ error: errMsg, debug: debugInfo });
   }
 }
 
 /**
- * Convert a base64 data URL to a Blob and upload it to fal.ai storage.
- * Works in Node.js serverless environment (no browser fetch of data URLs).
+ * Upload a base64 data URL to fal.ai storage.
+ * Uses fal's 2-step REST flow: initiate upload → PUT file to presigned URL.
+ * This matches what fal.storage.upload() does internally.
  */
-async function uploadBase64ToFal(dataUrl) {
-  // If it's already a URL, return as-is
+async function uploadToFalStorage(dataUrl) {
   if (dataUrl.startsWith('http')) {
     return dataUrl;
   }
 
-  // Parse the data URL: "data:image/png;base64,<data>"
   const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
   if (!matches) {
     throw new Error('Invalid data URL format');
@@ -91,11 +111,48 @@ async function uploadBase64ToFal(dataUrl) {
   const mimeType = matches[1];
   const base64Data = matches[2];
   const buffer = Buffer.from(base64Data, 'base64');
+  const ext = mimeType.includes('png') ? 'png' : 'jpg';
+  const fileName = `${Date.now()}.${ext}`;
 
-  // Create a Blob from the buffer
-  const blob = new Blob([buffer], { type: mimeType });
+  // Step 1: Initiate upload to get a presigned URL
+  const initiateRes = await fetch(
+    'https://rest.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${process.env.FAL_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content_type: mimeType,
+        file_name: fileName,
+      }),
+    }
+  );
 
-  // Upload to fal storage
-  const url = await fal.storage.upload(blob);
-  return url;
+  if (!initiateRes.ok) {
+    const errText = await initiateRes.text().catch(() => 'unknown');
+    throw new Error(`Storage initiate failed (${initiateRes.status}): ${errText}`);
+  }
+
+  const { upload_url, file_url } = await initiateRes.json();
+  if (!upload_url || !file_url) {
+    throw new Error('Storage initiate returned no upload_url or file_url');
+  }
+
+  // Step 2: PUT the file bytes to the presigned URL
+  const putRes = await fetch(upload_url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': mimeType,
+    },
+    body: buffer,
+  });
+
+  if (!putRes.ok) {
+    const errText = await putRes.text().catch(() => 'unknown');
+    throw new Error(`Storage PUT failed (${putRes.status}): ${errText}`);
+  }
+
+  return file_url;
 }
