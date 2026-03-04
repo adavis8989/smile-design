@@ -3,16 +3,13 @@ export default function LandingPage({ onStart }) {
     <div className="flex flex-col min-h-[calc(100dvh-52px)]">
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        {/* Smile Icon */}
+        {/* SPG Logo */}
         <div className="mb-8">
-          <div className="w-24 h-24 mx-auto bg-spg-blue/10 rounded-full flex items-center justify-center">
-            <svg className="w-14 h-14 text-spg-blue" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="2.5" />
-              <circle cx="20" cy="22" r="2.5" fill="currentColor" />
-              <circle cx="36" cy="22" r="2.5" fill="currentColor" />
-              <path d="M17 32C20 38 36 38 39 32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M21 32V35M25 32V36M29 32V36M33 32V35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+          <div className="text-4xl font-extrabold tracking-tight text-spg-blue">
+            SPG
+          </div>
+          <div className="text-xs font-semibold tracking-widest text-gray-400 uppercase mt-1">
+            Dental Implants
           </div>
         </div>
 
