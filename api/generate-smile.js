@@ -41,10 +41,10 @@ export default async function handler(req, res) {
         image_url: imageUrl,
         mask_url: maskUrl,
         prompt:
-          'Perfect straight white natural teeth, beautiful healthy smile, dental veneers, photorealistic, same person, matching skin tone, matching lighting, natural gums, high detail',
-        num_inference_steps: 28,
-        guidance_scale: 3.5,
-        strength: 0.65,
+          'naturally beautiful healthy smile with clean bright teeth, subtle and realistic, consistent skin texture and lighting, natural pink gums, photorealistic face detail, same person same lighting same angle',
+        num_inference_steps: 35,
+        guidance_scale: 4.0,
+        strength: 0.45,
         output_format: 'jpeg',
       },
     });
