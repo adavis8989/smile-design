@@ -8,6 +8,24 @@ const SPG_PHONE_TEL = 'tel:+18887747645';
 export default function ResultView({ originalImage, resultImage, onTryAgain, onStartOver }) {
   const [shareMessage, setShareMessage] = useState('');
 
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(resultImage);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my-new-smile.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Fallback: open in new tab
+      window.open(resultImage, '_blank');
+    }
+  };
+
   const handleShare = async () => {
     const shareData = {
       title: 'My New Smile Preview - SPG Dental Implants',
@@ -34,7 +52,7 @@ export default function ResultView({ originalImage, resultImage, onTryAgain, onS
   };
 
   return (
-    <div className="px-6 py-8 max-w-md mx-auto">
+    <div className="px-4 py-8 max-w-2xl mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-spg-gray-dark mb-1">Your New Smile!</h2>
@@ -69,6 +87,14 @@ export default function ResultView({ originalImage, resultImage, onTryAgain, onS
           </svg>
           Call Now: {SPG_PHONE}
         </a>
+
+        {/* Download */}
+        <button onClick={handleDownload} className="btn-outline flex items-center justify-center gap-2">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Save Your New Smile
+        </button>
 
         {/* Share */}
         <button onClick={handleShare} className="btn-outline flex items-center justify-center gap-2">

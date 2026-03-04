@@ -19,23 +19,32 @@ export async function loadModels() {
 
 /**
  * Detect face and extract mouth landmarks from an image element or data URL.
- * Returns the mouth landmark points (points 48-67 in the 68-point model).
+ * Tries multiple detector configurations to maximize detection success rate.
  */
 export async function detectMouth(imageSource) {
   await loadModels();
 
-  // If imageSource is a string (data URL), create an image element
   let imageElement = imageSource;
   if (typeof imageSource === 'string') {
     imageElement = await createImageElement(imageSource);
   }
 
-  const detection = await faceapi
-    .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({
-      inputSize: 416,
-      scoreThreshold: 0.5,
-    }))
-    .withFaceLandmarks(true); // true = use tiny model
+  // Try multiple configurations — different input sizes and thresholds
+  // work better for different photo sizes, angles, and lighting conditions
+  const configs = [
+    { inputSize: 416, scoreThreshold: 0.3 },
+    { inputSize: 512, scoreThreshold: 0.3 },
+    { inputSize: 320, scoreThreshold: 0.25 },
+    { inputSize: 608, scoreThreshold: 0.2 },
+  ];
+
+  let detection = null;
+  for (const cfg of configs) {
+    detection = await faceapi
+      .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions(cfg))
+      .withFaceLandmarks(true);
+    if (detection) break;
+  }
 
   if (!detection) {
     throw new Error(
