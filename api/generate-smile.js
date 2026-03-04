@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       input: {
         image_urls: [imageUrl],
         prompt:
-          'Give this person a beautiful, bright white, straight Hollywood smile with perfect teeth',
+          'Give this person a beautiful, natural-looking smile with straight, clean teeth in a realistic natural white shade, not overly whitened',
         num_images: 1,
         output_format: 'jpeg',
         safety_tolerance: 4,
