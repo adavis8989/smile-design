@@ -31,9 +31,9 @@ export default async function handler(req, res) {
     const imageUrl = await uploadToFalStorage(image);
     console.log('Upload complete:', imageUrl?.slice(0, 100));
 
-    // Step 2: Call fal.ai Nano Banana (Google Gemini image model) for smile editing
-    console.log('Calling fal.ai nano-banana edit...');
-    const result = await fal.subscribe('fal-ai/nano-banana/edit', {
+    // Step 2: Call fal.ai Nano Banana Pro (Google Gemini 3 Pro image model) for smile editing
+    console.log('Calling fal.ai nano-banana-pro edit...');
+    const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
       input: {
         image_urls: [imageUrl],
         prompt:
