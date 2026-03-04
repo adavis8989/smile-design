@@ -9,7 +9,8 @@
 
   body {
     @apply font-sans text-spg-gray-dark antialiased;
-    overscroll-behavior: none;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -56,4 +57,9 @@
 .slider-handle {
   touch-action: none;
   cursor: ew-resize;
+}
+
+/* Smooth scrolling for all views */
+main {
+  -webkit-overflow-scrolling: touch;
 }

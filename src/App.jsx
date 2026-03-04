@@ -56,7 +56,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-[100dvh] bg-white">
       {/* Header */}
       <header className="bg-spg-blue py-3 px-4 flex items-center justify-center">
         <div className="flex items-center gap-2">

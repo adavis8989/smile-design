@@ -1,6 +1,6 @@
 export default function LandingPage({ onStart }) {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-52px)]">
+    <div className="flex flex-col min-h-[calc(100dvh-52px)]">
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
         {/* Smile Icon */}

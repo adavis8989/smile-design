@@ -33,29 +33,33 @@ export default function BeforeAfterSlider({ beforeImage, afterImage }) {
     handleStart(e.clientX);
   }, [handleStart]);
 
-  // Touch events
+  // Touch events — only on the slider container, not the whole window
   const onTouchStart = useCallback((e) => {
     handleStart(e.touches[0].clientX);
   }, [handleStart]);
 
+  const onTouchMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    // Prevent page scroll only while dragging the slider
+    e.preventDefault();
+    handleMove(e.touches[0].clientX);
+  }, [handleMove]);
+
+  const onTouchEnd = useCallback(() => {
+    handleEnd();
+  }, [handleEnd]);
+
+  // Only global mouse listeners (mouse can leave the container)
   useEffect(() => {
     const onMouseMove = (e) => handleMove(e.clientX);
-    const onTouchMove = (e) => {
-      e.preventDefault();
-      handleMove(e.touches[0].clientX);
-    };
     const onUp = () => handleEnd();
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onUp);
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onUp);
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onUp);
     };
   }, [handleMove, handleEnd]);
 
@@ -63,8 +67,11 @@ export default function BeforeAfterSlider({ beforeImage, afterImage }) {
     <div
       ref={containerRef}
       className="relative w-full overflow-hidden rounded-2xl shadow-lg select-none cursor-ew-resize"
+      style={{ touchAction: 'pan-y' }}
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {/* After image (full width, behind) */}
       <img
