@@ -1,41 +1,31 @@
 import { detectMouth } from './faceDetection';
-import { generateMouthMask, generateFallbackMask } from '../utils/maskGenerator';
 
 const MAX_DIMENSION = 1024;
 
 /**
  * Generate an AI smile transformation.
  * 1. Resize image if too large (to stay within API payload limits)
- * 2. Detect face and mouth landmarks
- * 3. Generate mask for the mouth region
- * 4. Send to serverless function which proxies to fal.ai
- * 5. Return the generated image URL
+ * 2. Detect face (validation only — Nano Banana handles editing via prompt)
+ * 3. Send to serverless function which proxies to fal.ai Nano Banana
+ * 4. Return the generated image URL
  */
 export async function generateSmile(selfieDataUrl) {
   // Step 0: Resize if needed to keep payload under Vercel's 4.5MB limit
   const resizedDataUrl = await resizeImage(selfieDataUrl, MAX_DIMENSION);
 
-  // Step 1 & 2: Detect mouth and generate mask
-  let maskDataUrl;
+  // Step 1: Validate a face is present (Nano Banana doesn't need a mask)
   try {
-    const { mouthPoints, imageWidth, imageHeight, faceBox } = await detectMouth(resizedDataUrl);
-
-    if (mouthPoints.length >= 10) {
-      maskDataUrl = generateMouthMask(mouthPoints, imageWidth, imageHeight);
-    } else {
-      maskDataUrl = generateFallbackMask(faceBox, imageWidth, imageHeight);
-    }
+    await detectMouth(resizedDataUrl);
   } catch (err) {
     throw new Error(err.message || 'Could not detect your face. Please try a different photo.');
   }
 
-  // Step 3: Call serverless function
+  // Step 2: Call serverless function
   const response = await fetch('/api/generate-smile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       image: resizedDataUrl,
-      mask: maskDataUrl,
     }),
   });
 

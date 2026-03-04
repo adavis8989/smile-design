@@ -9,10 +9,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { image, mask } = req.body;
+  const { image } = req.body;
 
-  if (!image || !mask) {
-    return res.status(400).json({ error: 'Image and mask are required' });
+  if (!image) {
+    return res.status(400).json({ error: 'Image is required' });
   }
 
   if (!process.env.FAL_KEY) {
@@ -25,27 +25,22 @@ export default async function handler(req, res) {
   });
 
   try {
-    // Step 1: Upload images to fal storage using their 2-step REST flow
+    // Step 1: Upload image to fal storage using their 2-step REST flow
     // (initiate → get presigned URL → PUT file)
-    console.log('Uploading images to fal storage...');
-    const [imageUrl, maskUrl] = await Promise.all([
-      uploadToFalStorage(image),
-      uploadToFalStorage(mask),
-    ]);
-    console.log('Upload complete:', imageUrl?.slice(0, 100), maskUrl?.slice(0, 100));
+    console.log('Uploading image to fal storage...');
+    const imageUrl = await uploadToFalStorage(image);
+    console.log('Upload complete:', imageUrl?.slice(0, 100));
 
-    // Step 2: Call fal.ai inpainting
-    console.log('Calling fal.ai inpainting...');
-    const result = await fal.subscribe('fal-ai/flux-lora/inpainting', {
+    // Step 2: Call fal.ai Nano Banana (Google Gemini image model) for smile editing
+    console.log('Calling fal.ai nano-banana edit...');
+    const result = await fal.subscribe('fal-ai/nano-banana/edit', {
       input: {
-        image_url: imageUrl,
-        mask_url: maskUrl,
+        image_urls: [imageUrl],
         prompt:
-          'naturally beautiful healthy smile with clean bright teeth, subtle and realistic, consistent skin texture and lighting, natural pink gums, photorealistic face detail, same person same lighting same angle',
-        num_inference_steps: 35,
-        guidance_scale: 4.0,
-        strength: 0.45,
+          'Give this person a beautiful, bright white, straight Hollywood smile with perfect teeth',
+        num_images: 1,
         output_format: 'jpeg',
+        safety_tolerance: 4,
       },
     });
 
