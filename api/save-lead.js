@@ -1,5 +1,3 @@
-import { google } from 'googleapis';
-
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
@@ -13,53 +11,65 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Name and email are required' });
   }
 
-  // Check if Google Sheets is configured
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON || !process.env.GOOGLE_SHEET_ID) {
-    console.warn('Google Sheets not configured. Lead data:', {
+  // Check if Monday.com is configured
+  if (!process.env.MONDAY_API_TOKEN || !process.env.MONDAY_BOARD_ID) {
+    console.warn('Monday.com not configured. Lead data:', {
       firstName,
       lastName,
       email,
       phone,
       zipCode,
     });
-    // Return success even without sheets - don't block the user flow
+    // Return success even without Monday - don't block the user flow
     return res.status(200).json({ success: true, warning: 'Lead storage not configured' });
   }
 
   try {
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    const boardId = process.env.MONDAY_BOARD_ID;
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Column values mapped to Monday.com default column types
+    const columnValues = {};
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    // Name goes in the item name (first argument to create_item)
+    const itemName = `${firstName} ${lastName}`;
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'Sheet1!A:H',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [
-          [
-            new Date().toISOString(),
-            firstName,
-            lastName,
-            email,
-            phone || '',
-            zipCode || '',
-            '', // Original photo URL - omitted to save sheet space
-            generatedPhotoUrl || '',
-          ],
-        ],
+    // Map other fields to columns by ID
+    // Standard Monday.com column IDs: email, phone, text, ...
+    // We use a generic mapping - users can customize column IDs via env
+    if (email) columnValues.email = { email, text: email };
+    if (phone) columnValues.phone = { phone, countryShortName: 'US' };
+    if (zipCode) columnValues.text = zipCode;
+    if (generatedPhotoUrl) columnValues.link = { url: generatedPhotoUrl, text: 'View Smile' };
+
+    const mutation = `mutation {
+      create_item(
+        board_id: ${boardId},
+        item_name: ${JSON.stringify(itemName)},
+        column_values: ${JSON.stringify(JSON.stringify(columnValues))}
+      ) {
+        id
+      }
+    }`;
+
+    const response = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: process.env.MONDAY_API_TOKEN,
       },
+      body: JSON.stringify({ query: mutation }),
     });
 
-    return res.status(200).json({ success: true });
+    const data = await response.json();
+
+    if (data.errors && data.errors.length > 0) {
+      console.error('Monday.com API errors:', data.errors);
+      return res.status(500).json({ error: 'Failed to save your information. Please try again.' });
+    }
+
+    return res.status(200).json({ success: true, itemId: data.data?.create_item?.id });
   } catch (err) {
-    console.error('Google Sheets error:', err);
-    // Don't expose internal error details
+    console.error('Monday.com error:', err);
     return res.status(500).json({ error: 'Failed to save your information. Please try again.' });
   }
 }
