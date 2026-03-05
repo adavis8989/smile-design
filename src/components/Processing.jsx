@@ -30,17 +30,21 @@ export default function Processing({ selfieImage, contactData, onComplete, onErr
 
     async function process() {
       try {
-        // Generate the smile in parallel with saving the lead
-        const [generatedImage] = await Promise.all([
-          generateSmile(selfieImage),
-          saveLead(contactData).catch((err) => {
-            // Don't block the flow if lead save fails
-            console.error('Failed to save lead:', err);
-          }),
-        ]);
+        // Generate the smile (save lead in parallel if contact data exists)
+        const tasks = [generateSmile(selfieImage)];
+        if (contactData) {
+          tasks.push(
+            saveLead(contactData).catch((err) => {
+              console.error('Failed to save lead:', err);
+            })
+          );
+        }
+        const [generatedImage] = await Promise.all(tasks);
 
         // Update the lead with generated photo URL
-        saveLead({ ...contactData, generatedPhotoUrl: generatedImage }).catch(() => {});
+        if (contactData) {
+          saveLead({ ...contactData, generatedPhotoUrl: generatedImage }).catch(() => {});
+        }
 
         onComplete(generatedImage);
       } catch (err) {

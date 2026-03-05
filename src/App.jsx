@@ -14,14 +14,15 @@ const STEPS = {
 };
 
 export default function App() {
-  const [step, setStep] = useState(STEPS.LANDING);
+  const isDemo = new URLSearchParams(window.location.search).has('mode', 'demo');
+  const [step, setStep] = useState(isDemo ? STEPS.SELFIE : STEPS.LANDING);
   const [contactData, setContactData] = useState(null);
   const [selfieImage, setSelfieImage] = useState(null);
   const [resultImage, setResultImage] = useState(null);
 
   const handleStart = useCallback(() => {
-    setStep(STEPS.CONTACT);
-  }, []);
+    setStep(isDemo ? STEPS.SELFIE : STEPS.CONTACT);
+  }, [isDemo]);
 
   const handleContactSubmit = useCallback((data) => {
     setContactData(data);
@@ -52,8 +53,8 @@ export default function App() {
     setContactData(null);
     setSelfieImage(null);
     setResultImage(null);
-    setStep(STEPS.LANDING);
-  }, []);
+    setStep(isDemo ? STEPS.SELFIE : STEPS.LANDING);
+  }, [isDemo]);
 
   return (
     <div className="min-h-[100dvh] bg-white">
@@ -81,7 +82,7 @@ export default function App() {
           <ContactForm onSubmit={handleContactSubmit} onBack={() => setStep(STEPS.LANDING)} />
         )}
         {step === STEPS.SELFIE && (
-          <SelfieCapture onCapture={handleSelfieCapture} onBack={() => setStep(STEPS.CONTACT)} />
+          <SelfieCapture onCapture={handleSelfieCapture} onBack={() => setStep(isDemo ? STEPS.LANDING : STEPS.CONTACT)} />
         )}
         {step === STEPS.PROCESSING && (
           <Processing
